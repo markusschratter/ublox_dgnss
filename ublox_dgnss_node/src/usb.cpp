@@ -192,7 +192,7 @@ libusb_device_handle * Connection::open_device_with_serial_string(
 
     if (device_family_ == ublox_dgnss::DeviceFamily::X20P) {
       // X20P: Serial behavior depends on which USB device we're using
-      if (desc.idProduct == 0x01ab) {
+      if (desc.idProduct == product_ids_[0]) {
         // 0x01ab: F9P/F9R-compatible behavior (IDENTICAL serial handling)
         reliable_iserial = false;  // User-programmed via u-center, may be empty
       } else {
@@ -308,7 +308,7 @@ bool Connection::open_device()
 
   if (device_family_ == ublox_dgnss::DeviceFamily::X20P) {
     // X20P: Architecture depends on which USB device we're connecting to
-    if (dev_desc.idProduct == 0x01ab) {
+    if (dev_desc.idProduct == product_ids_[0]) {
       // 0x01ab: F9P/F9R-compatible CDC-ACM interface (IDENTICAL to F9P/F9R)
       expected_interfaces = 2;
     } else {
@@ -398,7 +398,7 @@ bool Connection::open_device()
   bool use_cdc_control = false;
   if (device_family_ == ublox_dgnss::DeviceFamily::X20P) {
     // X20P: CDC control ONLY for F9P-compatible interface (0x01ab)
-    use_cdc_control = (dev_desc.idProduct == 0x01ab);
+    use_cdc_control = (dev_desc.idProduct == product_ids_[0]);
   } else {
     // F9P/F9R: Always use CDC-ACM control (standard behavior)
     use_cdc_control = true;

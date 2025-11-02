@@ -153,6 +153,8 @@ public:
 
     // Check device family first, then device serial string with family-aware messaging
     check_for_device_family_param(parameters_client);
+    check_for_product_id_param(parameters_client);
+
     check_for_ubx_config_file_param(parameters_client);
     check_for_device_serial_param(parameters_client);
     check_for_frame_id_param(parameters_client);
@@ -317,9 +319,14 @@ public:
       get_logger(), "Make USB Connection - Device: %s, Product IDs: %zu, Serial: '%s'",
       device_info.description.c_str(), device_info.product_ids.size(),
       serial_str_.c_str());
+//    usbc_ = std::make_shared<usb::Connection>(
+//      U_BLOX_AG_VENDOR_ID, device_info.product_ids,
+//      serial_str_, device_family_);
+
     usbc_ = std::make_shared<usb::Connection>(
-      U_BLOX_AG_VENDOR_ID, device_info.product_ids,
+      U_BLOX_AG_VENDOR_ID, std::vector<uint16_t>{product_id_},
       serial_str_, device_family_);
+
 
     RCLCPP_DEBUG(get_logger(), "setting up usb callbacks ...");
     usbc_->set_in_callback(connection_in_callback);
@@ -620,6 +627,9 @@ private:
   std::string device_family_str_;
   const std::string DEVICE_FAMILY_PARAM_NAME = "DEVICE_FAMILY";
 
+  uint16_t product_id_;
+  const std::string PRODUCT_ID_PARAM_NAME = "PRODUCT_ID_STRING";
+
   ubx::cfg::ubx_cfg_item_map_t loaded_config_map_;
   std::string loaded_config_family_;  // Which family config was loaded
   std::string loaded_config_file_;    // Which file was loaded
@@ -796,6 +806,35 @@ private:
       device_family_str_ = "F9P";
       device_family_ = ublox_dgnss::DeviceFamily::F9P;
     }
+  }
+
+  UBLOX_DGNSS_NODE_LOCAL
+  void check_for_product_id_param(rclcpp::SyncParametersClient::SharedPtr param_client)
+  {
+    // default to ubx
+    product_id_ = 0x1ab;
+    // Check if the parameter exists
+    if (!param_client->has_parameter(PRODUCT_ID_PARAM_NAME)) {
+      RCLCPP_INFO(
+        this->get_logger(), "Parameter %s not found, defaulting to '0x1ab' product_id",
+        PRODUCT_ID_PARAM_NAME.c_str());
+      return;
+    }
+
+    // Get the parameter value
+    std::string product_id_str = param_client->get_parameter<std::string>(PRODUCT_ID_PARAM_NAME);
+    try {
+      product_id_ = static_cast<uint16_t>(std::stoul(product_id_str, nullptr, 0));
+      RCLCPP_INFO(
+        this->get_logger(), "Parameter %s found with value: %d",
+        PRODUCT_ID_PARAM_NAME.c_str(), product_id_);      
+    } catch (const std::invalid_argument &e) {
+      RCLCPP_ERROR(this->get_logger(), "Invalid product_id string: '%s'", product_id_str.c_str());
+    } catch (const std::out_of_range &e) {
+      RCLCPP_ERROR(this->get_logger(), "product_id out of range: '%s'", product_id_str.c_str());
+    }
+
+
   }
 
   UBLOX_DGNSS_NODE_LOCAL
